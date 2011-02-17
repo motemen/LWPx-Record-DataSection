@@ -10,11 +10,30 @@ our $VERSION = '0.01';
 our $Data;
 our ($Pkg, $File, $Fh);
 
+our $Option = {
+    decode_content => 1,
+    drop_uncommon_headers => 1,
+};
+
+# From HTTP::Headers
+our %CommonHeader = map { $_ => 1 } qw(
+    Cache-Control Connection Date Pragma Trailer Transfer-Encoding Upgrade
+    Via Warning
+    Accept-Ranges Age ETag Location Proxy-Authenticate Retry-After Server
+    Vary WWW-Authenticate
+    Allow Content-Encoding Content-Language Content-Length Content-Location
+    Content-MD5 Content-Range Content-Type Expires Last-Modified
+);
+
 sub import {
-    my $class = shift;
+    my ($class, %args) = @_;
     if (defined $Pkg) {
         require Carp;
         Carp::croak("only one class can use $class");
+    }
+    foreach (keys %args) {
+        s/^-//;
+        $Option->{$_} = $args{$_};
     }
     ($Pkg, $File) = caller;
 }
@@ -55,8 +74,23 @@ sub restore_response {
 sub store_response {
     my ($class, $res, $req) = @_;
     my $key = $class->request_to_key($req);
+
+    my $res_to_store = $res->clone;
+    if ($Option->{decode_content}) {
+        my $content = $res_to_store->decoded_content;
+        utf8::encode $content if utf8::is_utf8 $content;
+        $res_to_store->content($content);
+        $res_to_store->content_length(length $content);
+        $res_to_store->remove_header('Content-Encoding');
+    }
+    if ($Option->{drop_uncommon_headers}) {
+        foreach ($res_to_store->header_field_names) {
+            $res_to_store->remove_header($_) unless $CommonHeader{$_};
+        }
+    }
+
     $class->append_to_file("@@ $key\n");
-    $class->append_to_file($res->as_string("\n"), "\n");
+    $class->append_to_file($res_to_store->as_string("\n"), "\n");
 }
 
 package #
