@@ -73,6 +73,7 @@ sub restore_response {
     my $key = $class->request_to_key($req);
     if (my $string = $Data && $Data->{$key}) {
         $string =~ s/\n\z//;
+        utf8::encode $string if utf8::is_utf8 $string;
         my $res = HTTP::Response->parse($string);
         $res->request($req);
         return $res;
