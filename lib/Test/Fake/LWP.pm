@@ -35,7 +35,15 @@ sub import {
         s/^-//;
         $Option->{$_} = $args{$_};
     }
-    ($Pkg, $File) = caller;
+    for (my $level = 0; ; $level++) {
+        my ($pkg, $file) = caller($level) or last;
+        if ($file eq $0) {
+            ($Pkg, $File) = ($pkg, $file);
+            return;
+        }
+    }
+    require Carp;
+    Carp::croak 'Suitable file not found';
 }
 
 INIT {
