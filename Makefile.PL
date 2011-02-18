@@ -8,6 +8,7 @@ requires 'HTTP::Response';
 requires 'LWP::Protocol';
 requires 'LWP::UserAgent';
 requires 'Carp';
+requires 'CGI::Simple::Cookie';
 
 tests 't/*.t';
 author_tests 'xt';

@@ -4,6 +4,7 @@ use warnings;
 use LWP::Protocol;
 use HTTP::Response;
 use Data::Section::Simple;
+use CGI::Simple::Cookie;
 
 our $VERSION = '0.01';
 
@@ -13,6 +14,7 @@ our ($Pkg, $File, $Fh);
 our $Option = {
     decode_content => 1,
     drop_uncommon_headers => 1,
+    keep_cookie_key => undef,
 };
 
 # From HTTP::Headers
@@ -32,8 +34,9 @@ sub import {
         Carp::croak("only one class can use $class");
     }
     foreach (keys %args) {
+        my $value = $args{$_};
         s/^-//;
-        $Option->{$_} = $args{$_};
+        $Option->{$_} = $value;
     }
     for (my $level = 0; ; $level++) {
         my ($pkg, $file) = caller($level) or last;
@@ -64,7 +67,13 @@ sub append_to_file {
 
 sub request_to_key {
     my ($class, $req) = @_;
-    return join ' ', $req->method, $req->uri;
+    my @keys = ( $req->method, $req->uri );
+    if (my $cookie_keys = $Option->{keep_cookie_key}) {
+        my $cookie = $req->header('Cookie');
+        my %cookies = CGI::Simple::Cookie->parse($cookie);
+        push @keys, 'cookies=' . join ',', grep { $cookies{$_} } sort @$cookie_keys;
+    }
+    return join ' ', @keys;
 }
 
 sub restore_response {
@@ -100,6 +109,8 @@ sub store_response {
 
     $class->append_to_file("@@ $key\n");
     $class->append_to_file($res_to_store->as_string("\n"), "\n");
+
+    $Data->{$key} = $res_to_store->as_string;
 }
 
 package #
