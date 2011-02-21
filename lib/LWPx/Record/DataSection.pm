@@ -18,7 +18,7 @@ our $Option = {
     record_request_cookie  => undef,
 };
 
-# From HTTP::Headers (+ Set-Cookie)
+# From HTTP::Headers
 our @CommonHeaders = qw(
     Cache-Control Connection Date Pragma Trailer Transfer-Encoding Upgrade
     Via Warning
@@ -237,6 +237,32 @@ Running this test appends the actual response to the test file itself, thus prod
   ...
 
 After that running the test does not require internet connection.
+
+=head1 OPTIONS
+
+  You can specify option when use this module.
+
+  use LWPx::Record::DataSection \%option;
+
+=over 4
+
+=item decode_content => 1 | 0
+
+By default, responses are recorded as decoded so that you will not see
+unreadable bytes in your file. If this behavior is not desired,
+turn this option off.
+
+=item record_response_header => \@headers | ':all'
+
+By default, uncommon headers like "X-Framework" are dropped when recording.
+Specify this option to record extra headers.
+
+=item record_request_cookie => \@keys
+
+By default, only request method and request uri are used to identify request.
+Specify this option to use certain cookie as key.
+
+=back
 
 =head1 CAVEATS
 
