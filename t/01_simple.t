@@ -1,13 +1,16 @@
 use strict;
-use Test::More;
-use Test::Fake::LWP;
+use Test::More tests => 3;
+use LWPx::Record::DataSection {
+    record_response_header => ':all'
+};
 use LWP::Simple qw($ua);
 
 my $res = $ua->get('http://www.example.com/');
+ok $res->is_success;
 is scalar $res->redirects, 1;
 is $res->base, 'http://www.iana.org/domains/example/';
 
-done_testing;
+# below are recorded by this script
 
 __DATA__
 
@@ -17,18 +20,27 @@ Connection: Keep-Alive
 Location: http://www.iana.org/domains/example/
 Server: BigIP
 Content-Length: 0
+Client-Peer: 192.0.32.10:80
+Client-Response-Num: 1
 
 
 @@ GET http://www.iana.org/domains/example/
 HTTP/1.1 200 OK
 Connection: Keep-Alive
-Date: Thu, 17 Feb 2011 16:18:23 GMT
+Date: Mon, 21 Feb 2011 10:34:16 GMT
 Accept-Ranges: bytes
-Age: 19     
+Age: 39     
 Server: Apache/2.2.3 (CentOS)
 Content-Length: 2945
 Content-Type: text/html; charset=UTF-8
 Last-Modified: Wed, 09 Feb 2011 17:13:15 GMT
+Client-Peer: 192.0.32.8:80
+Client-Response-Num: 1
+Link: </_css/reset-fonts-grids.css>; rel="stylesheet"; type="text/css"
+Link: </_css/screen.css>; media="screen"; rel="stylesheet"; type="text/css"
+Link: </_css/print.css>; media="print"; rel="stylesheet"; type="text/css"
+Link: </favicon.ico>; rel="shortcut icon"; type="image/ico"
+Title: IANA — Example domains
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">

@@ -1,9 +1,10 @@
-package Test::Fake::LWP;
+package LWPx::Record::DataSection;
 use strict;
 use warnings;
 use LWP::Protocol;
-use HTTP::Response;
 use Data::Section::Simple;
+use B::Hooks::EndOfScope;
+use HTTP::Response;
 use CGI::Simple::Cookie;
 
 our $VERSION = '0.01';
@@ -12,13 +13,13 @@ our $Data;
 our ($Pkg, $File, $Fh);
 
 our $Option = {
-    decode_content => 1,
-    drop_uncommon_headers => 1,
-    keep_cookie_key => undef,
+    decode_content         => 1,
+    record_response_header => undef,
+    record_request_cookie  => undef,
 };
 
-# From HTTP::Headers
-our %CommonHeader = map { $_ => 1 } qw(
+# From HTTP::Headers (+ Set-Cookie)
+our @CommonHeaders = qw(
     Cache-Control Connection Date Pragma Trailer Transfer-Encoding Upgrade
     Via Warning
     Accept-Ranges Age ETag Location Proxy-Authenticate Retry-After Server
@@ -28,33 +29,35 @@ our %CommonHeader = map { $_ => 1 } qw(
 );
 
 sub import {
-    my ($class, %args) = @_;
+    my ($class, $args) = @_;
+
     if (defined $Pkg) {
         require Carp;
         Carp::croak("only one class can use $class");
     }
-    foreach (keys %args) {
-        my $value = $args{$_};
-        s/^-//;
-        $Option->{$_} = $value;
+
+    foreach (keys %{ $args || {} }) {
+        $Option->{$_} = $args->{$_};
     }
+
     for (my $level = 0; ; $level++) {
         my ($pkg, $file) = caller($level) or last;
-        if ($file eq $0) {
-            ($Pkg, $File) = ($pkg, $file);
-            return;
-        }
-    }
-    require Carp;
-    Carp::croak 'Suitable file not found';
-}
+        next unless $file eq $0;
 
-INIT {
-    $Data = Data::Section::Simple->new($Pkg)->get_data_section;
-    unless (defined $Data) {
-        __PACKAGE__->append_to_file("\n__DATA__\n\n");
+        ($Pkg, $File) = ($pkg, $file);
+        on_scope_end {
+            $Data = Data::Section::Simple->new($Pkg)->get_data_section;
+            unless (defined $Data) {
+                __PACKAGE__->append_to_file("\n__DATA__\n\n");
+                $Data = {};
+            }
+            LWP::Protocol::Fake->fake;
+        };
+        return;
     }
-    LWP::Protocol::Fake->fake;
+
+    require Carp;
+    Carp::croak "Suitable file not found: $0";
 }
 
 sub append_to_file {
@@ -67,12 +70,14 @@ sub append_to_file {
 
 sub request_to_key {
     my ($class, $req) = @_;
+
     my @keys = ( $req->method, $req->uri );
-    if (my $cookie_keys = $Option->{keep_cookie_key}) {
-        my $cookie = $req->header('Cookie');
+    if (my $cookie_keys = $Option->{record_request_cookie}) {
+        my $cookie  = $req->header('Cookie');
         my %cookies = CGI::Simple::Cookie->parse($cookie);
-        push @keys, 'cookies=' . join ',', grep { $cookies{$_} } sort @$cookie_keys;
+        push @keys, 'Cookie:' . join ',', map { "$_=" . $cookies{$_}->value } grep { $cookies{$_} } sort @$cookie_keys;
     }
+
     return join ' ', @keys;
 }
 
@@ -101,9 +106,12 @@ sub store_response {
         $res_to_store->content_length(length $content);
         $res_to_store->remove_header('Content-Encoding');
     }
-    if ($Option->{drop_uncommon_headers}) {
+
+    my $record_response_header = $Option->{record_response_header} || [];
+    unless ($record_response_header eq ':all') {
+        my %header_to_keep = map { uc $_ => 1 } ( @CommonHeaders, @$record_response_header );
         foreach ($res_to_store->header_field_names) {
-            $res_to_store->remove_header($_) unless $CommonHeader{$_};
+            $res_to_store->remove_header($_) unless $header_to_keep{ uc $_ };
         }
     }
 
@@ -124,6 +132,12 @@ sub fake {
     *LWP::Protocol::create = sub { LWP::Protocol::Fake->new(@_) };
 }
 
+sub unfake {
+    my $class = shift;
+    no warnings 'redefine';
+    *LWP::Protocol::create = $ORIGINAL_LWP_Protocol_create;
+}
+
 sub new {
     my ($class, $scheme, $ua) = @_;
     bless { scheme => $scheme, ua => $ua, real => &$ORIGINAL_LWP_Protocol_create($scheme, $ua) }, $class;
@@ -132,11 +146,11 @@ sub new {
 sub request {
     my ($self, $request, $proxy, $arg, $size, $timeout) = @_;
 
-    if (my $res = Test::Fake::LWP->restore_response($request)) {
+    if (my $res = LWPx::Record::DataSection->restore_response($request)) {
         return $res;
     } else {
         my $res = $self->{real}->request($request, $proxy, $arg, $size, $timeout);
-        Test::Fake::LWP->store_response($res, $request);
+        LWPx::Record::DataSection->store_response($res, $request);
         return $res;
     }
 }
@@ -147,12 +161,12 @@ __END__
 
 =head1 NAME
 
-Test::Fake::LWP - Fake LWP response from __DATA__ section
+LWPx::Record::DataSection - Record/restore LWP response using __DATA__ section
 
 =head1 SYNOPSIS
 
   use Test::More;
-  use Test::Fake::LWP;
+  use LWPx::Record::DataSection;
   use LWP::Simple qw($ua);
 
   my $res = $ua->get('http://www.example.com/'); # does not access to the internet actually
@@ -167,7 +181,7 @@ Test::Fake::LWP - Fake LWP response from __DATA__ section
 
 =head1 DESCRIPTION
 
-Test::Fake::LWP overrides LWP::Protocol and creates response object from __DATA__ section.
+LWPx::Record::DataSection overrides LWP::Protocol and creates response object from __DATA__ section.
 The response should be recorded as below:
 
   __DATA__
@@ -183,20 +197,20 @@ The response should be recorded as below:
 =head1 RECORDING RESPONSES
 
 When LWP try to send request without corresponding data section,
-Test::Fake::LWP allows actual connection and records the response to the test file's __DATA__ section.
+LWPx::Record::DataSection allows actual connection and records the response to the test file's __DATA__ section.
 
 Example:
 
   # test.t
   use strict;
   use Test::More;
-  use Test::Fake::LWP;
+  use LWPx::Record::DataSection;
   use LWP::Simple qw($ua);
 
   my $res = $ua->get('http://www.example.com/');
   is $res->code, 200;
 
-  # No __END__ please, Test::Fake::LWP confuses
+  # No __END__ please, LWPx::Record::DataSection confuses
   __DATA__
 
 Running this test appends the actual response to the test file itself, thus produces such:
@@ -204,13 +218,13 @@ Running this test appends the actual response to the test file itself, thus prod
   # test.t
   use strict;
   use Test::More;
-  use Test::Fake::LWP;
+  use LWPx::Record::DataSection;
   use LWP::Simple qw($ua);
 
   my $res = $ua->get('http://www.example.com/');
   is $res->code, 200;
 
-  # No __END__ please, Test::Fake::LWP confuses
+  # No __END__ please, LWPx::Record::DataSection confuses
   __DATA__
   @@ GET http://www.example.com/
   HTTP/1.0 302 Found

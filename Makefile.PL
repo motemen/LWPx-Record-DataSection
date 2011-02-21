@@ -1,19 +1,20 @@
 use inc::Module::Install;
 
-name 'Test-Fake-LWP';
-all_from 'lib/Test/Fake/LWP.pm';
+name 'LWPx-Record-Data';
+all_from 'lib/LWPx/Record/DataSection.pm';
 
 requires 'Data::Section::Simple';
-requires 'HTTP::Response';
 requires 'LWP::Protocol';
-requires 'LWP::UserAgent';
+requires 'HTTP::Response';
 requires 'Carp';
 requires 'CGI::Simple::Cookie';
+requires 'B::Hooks::EndOfScope';
 
 tests 't/*.t';
 author_tests 'xt';
 
 test_requires 'Test::More';
+test_requires 'WWW::NicoVideo::Download' if $Module::Install::AUTHOR;
 
 auto_set_repository;
 auto_include;

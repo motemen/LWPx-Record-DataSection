@@ -8,6 +8,7 @@ eval q{
 };
 
 plan skip_all => "Could not load modules: $@" if $@;
+plan tests => 6;
 
 my $count = 0;
 my $app = sub {
@@ -52,12 +53,10 @@ is run_script('redirect'), "hello (1)", 'server response redirect (stored)';
 open my $fh, '<', $filename;
 note <$fh>;
 
-done_testing;
-
 __DATA__
 #!perl
 use strict;
-use Test::Fake::LWP;
+use LWPx::Record::DataSection;
 use LWP::Simple qw($ua);
 
 my ($port, $path) = @ARGV;
