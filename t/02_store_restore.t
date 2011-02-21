@@ -50,8 +50,8 @@ is run_script('newline'), "hello (2)\n", 'server response w/newline (stored)';
 is run_script('redirect'), "hello (1)", 'server response redirect';
 is run_script('redirect'), "hello (1)", 'server response redirect (stored)';
 
-open my $fh, '<', $filename;
-note <$fh>;
+open my $dump_fh, '<', $filename;
+note <$dump_fh>;
 
 __DATA__
 #!perl
