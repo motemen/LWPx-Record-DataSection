@@ -16,6 +16,7 @@ our $Option = {
     decode_content         => 1,
     record_response_header => undef,
     record_request_cookie  => undef,
+    append_data_section    => !!$ENV{LWPX_RECORD_APPEND_DATA},
 };
 
 # From HTTP::Headers
@@ -29,28 +30,32 @@ our @CommonHeaders = qw(
 );
 
 sub import {
-    my ($class, $args) = @_;
+    my ($class, %args) = @_;
 
-    if (defined $Pkg) {
-        require Carp;
-        Carp::croak("only one class can use $class");
-    }
-
-    foreach (keys %{ $args || {} }) {
-        $Option->{$_} = $args->{$_};
+    while (my ($key, $value) = each %args) {
+        $key =~ s/^-//;
+        $Option->{$key} = $value;
     }
 
     for (my $level = 0; ; $level++) {
         my ($pkg, $file) = caller($level) or last;
         next unless $file eq $0;
 
+        if (defined $Pkg && $pkg ne $Pkg) {
+            require Carp;
+            Carp::croak("only one class can use $class");
+        }
+
         ($Pkg, $File) = ($pkg, $file);
         on_scope_end {
-            $Data = Data::Section::Simple->new($Pkg)->get_data_section;
-            unless (defined $Data) {
+            $class->load_data;
+
+            # append __DATA__ section only when direct import
+            if ($level == 0 && not defined $Data) {
                 __PACKAGE__->append_to_file("\n__DATA__\n\n");
                 $Data = {};
             }
+
             LWP::Protocol::Fake->fake;
         };
         return;
@@ -60,8 +65,15 @@ sub import {
     Carp::croak "Suitable file not found: $0";
 }
 
+sub load_data {
+    my $class = shift;
+    $Data = Data::Section::Simple->new($Pkg)->get_data_section;
+    return $Data;
+}
+
 sub append_to_file {
     my $class = shift;
+    return unless $Option->{append_data_section};
     unless ($Fh && fileno $Fh) {
         open $Fh, '>>', $File or die $!;
     }
@@ -213,7 +225,8 @@ Example:
   # No __END__ please, LWPx::Record::DataSection confuses
   __DATA__
 
-Running this test appends the actual response to the test file itself, thus produces such:
+Running this test with environment variable LWPX_RECORD_APPEND_DATA=1 
+appends the actual response to the test file itself, thus produces such:
 
   # test.t
   use strict;
@@ -242,7 +255,7 @@ After that running the test does not require internet connection.
 
   You can specify option when use this module.
 
-  use LWPx::Record::DataSection \%option;
+  use LWPx::Record::DataSection %option;
 
 =over 4
 
@@ -262,11 +275,16 @@ Specify this option to record extra headers.
 By default, only request method and request uri are used to identify request.
 Specify this option to use certain cookie as key.
 
+=item append_data_section => $ENV{LWPX_RECORD_APPEND_DATA};
+
+Automatically record responses to __DATA__ section if not recorded.
+You can specify this by LWPX_RECORD_APPEND_DATA environment variable.
+
 =back
 
 =head1 CAVEATS
 
-If the file contains __END__ section, storing respnose will not work.
+If the file contains __END__ section, storing response will not work.
 
 __DATA__ section key does not contain POST parameters, etc. (this is in TODO)
 
