@@ -5,6 +5,7 @@ use LWP::Protocol;
 use Data::Section::Simple;
 use B::Hooks::EndOfScope;
 use HTTP::Response;
+use CGI::Simple;
 use CGI::Simple::Cookie;
 
 our $VERSION = '0.01';
@@ -16,6 +17,7 @@ our $Option = {
     decode_content         => 1,
     record_response_header => undef,
     record_request_cookie  => undef,
+    record_post_param      => undef,
     append_data_section    => !!$ENV{LWPX_RECORD_APPEND_DATA},
 };
 
@@ -88,6 +90,10 @@ sub request_to_key {
         my $cookie  = $req->header('Cookie');
         my %cookies = CGI::Simple::Cookie->parse($cookie);
         push @keys, 'Cookie:' . join ',', map { "$_=" . $cookies{$_}->value } grep { $cookies{$_} } sort @$cookie_keys;
+    }
+    if (my $post_params = $Option->{record_post_param}) {
+        my $q = CGI::Simple->new($req->content);
+        push @keys, 'Post:' . join ',', map { my $key = $_; map { "$key=$_" } $q->param($_) } grep { $q->param($_) } sort @$post_params;
     }
 
     return join ' ', @keys;
@@ -270,10 +276,18 @@ turn this option off.
 By default, uncommon headers like "X-Framework" are dropped when recording.
 Specify this option to record extra headers.
 
+=item record_post_param => \@params
+
+Use POSTed parameters as extra key. Post keys are recorded as:
+
+  @@ POST http://localhost/ Post:foo=1,foo=2
+
 =item record_request_cookie => \@keys
 
 By default, only request method and request uri are used to identify request.
-Specify this option to use certain cookie as key.
+Specify this option to use certain cookie as key. Cookie keys are recorded as:
+
+  @@ GET http://localhost/ Cookie:foo=1,bar=2
 
 =item append_data_section => $ENV{LWPX_RECORD_APPEND_DATA};
 

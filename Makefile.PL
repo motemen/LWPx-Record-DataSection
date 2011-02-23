@@ -7,6 +7,7 @@ requires 'Data::Section::Simple';
 requires 'LWP::Protocol';
 requires 'HTTP::Response';
 requires 'Carp';
+requires 'CGI::Simple';
 requires 'CGI::Simple::Cookie';
 requires 'B::Hooks::EndOfScope';
 
