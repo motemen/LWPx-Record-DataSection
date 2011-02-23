@@ -257,9 +257,26 @@ appends the actual response to the test file itself, thus produces such:
 
 After that running the test does not require internet connection.
 
+=head1 CLASS METHODS
+
+=over 4
+
+=item LWPx::Record::DataSection->load_data
+
+Load __DATA__ section into $LWPx::Record::DataSection::Data.
+LWPx::Record::DataSection->import implies this,
+so if you do not C<< use >> this module, explicitly call this.
+
+Example:
+
+  use Test::Requires 'LWPx::Record::DataSection';
+  LWPx::Record::DataSection->load_data;
+
+=back
+
 =head1 OPTIONS
 
-  You can specify option when use this module.
+  You can specify option when C<< use >> this module.
 
   use LWPx::Record::DataSection %option;
 
@@ -300,17 +317,16 @@ You can specify this by LWPX_RECORD_APPEND_DATA environment variable.
 
 If the file contains __END__ section, storing response will not work.
 
-__DATA__ section key does not contain POST parameters, etc. (this is in TODO)
-
-=head1 TODO
-
-Make available to use other parameters for keys.
+L<< LWPx::Record::DataSection >> appends __DATA__ section only files that
+directly C<< use >> this module. This is to avoid accidents.
 
 =head1 AUTHOR
 
 motemen E<lt>motemen@gmail.comE<gt>
 
 =head1 SEE ALSO
+
+L<< Data::Section::Simple >>, L<< LWP::Protocol >>
 
 =head1 LICENSE
 

@@ -15,8 +15,7 @@ tests 't/*.t';
 author_tests 'xt';
 
 test_requires 'Test::More';
-test_requires 'WWW::NicoVideo::Download' if $Module::Install::AUTHOR;
-test_requires 'Config::Pit'              if $Module::Install::AUTHOR;
+test_requires 'Test::Requires';
 
 auto_set_repository;
 auto_include;
