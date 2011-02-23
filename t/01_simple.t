@@ -1,8 +1,6 @@
 use strict;
 use Test::More tests => 3;
-use LWPx::Record::DataSection {
-    record_response_header => ':all'
-};
+use LWPx::Record::DataSection -record_response_header => ':all';
 use LWP::Simple qw($ua);
 
 my $res = $ua->get('http://www.example.com/');
@@ -10,7 +8,8 @@ ok $res->is_success;
 is scalar $res->redirects, 1;
 is $res->base, 'http://www.iana.org/domains/example/';
 
-# below are recorded by this script
+# below are recorded by
+# LWPX_RECORD_APPEND_DATA=1 prove -l t/01_simple.t
 
 __DATA__
 
@@ -27,9 +26,9 @@ Client-Response-Num: 1
 @@ GET http://www.iana.org/domains/example/
 HTTP/1.1 200 OK
 Connection: Keep-Alive
-Date: Mon, 21 Feb 2011 10:34:16 GMT
+Date: Wed, 23 Feb 2011 11:04:13 GMT
 Accept-Ranges: bytes
-Age: 39     
+Age: 3      
 Server: Apache/2.2.3 (CentOS)
 Content-Length: 2945
 Content-Type: text/html; charset=UTF-8

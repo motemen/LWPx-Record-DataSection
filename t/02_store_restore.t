@@ -56,7 +56,7 @@ note <$dump_fh>;
 __DATA__
 #!perl
 use strict;
-use LWPx::Record::DataSection;
+use LWPx::Record::DataSection -append_data_section => 1;
 use LWP::Simple qw($ua);
 
 my ($port, $path) = @ARGV;

@@ -1,9 +1,8 @@
 use strict;
 use Test::More;
-use LWPx::Record::DataSection {
-    record_response_header => [ qw(Set-Cookie X-Niconico-Authflag) ], 
-    record_request_cookie  => [ 'user_session' ],
-};
+use LWPx::Record::DataSection
+    -record_response_header => [ qw(Set-Cookie X-Niconico-Authflag) ], 
+    -record_request_cookie  => [ 'user_session' ];
 
 BEGIN { *CORE::GLOBAL::time = sub { 1298029590 } }
 
