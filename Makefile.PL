@@ -1,6 +1,6 @@
 use inc::Module::Install;
 
-name 'LWPx-Record-Data';
+name 'LWPx-Record-DataSection';
 all_from 'lib/LWPx/Record/DataSection.pm';
 
 requires 'Data::Section::Simple';
